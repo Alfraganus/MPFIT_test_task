@@ -9,10 +9,9 @@ class ProductController extends Controller
 {
     public function index()
     {
-        $products = Product::all();
+        $products = Product::orderBy('quantity', 'asc')->get();
         return view('products.index', compact('products'));
     }
-
     public function create()
     {
         $categories = Category::all();
@@ -21,15 +20,24 @@ class ProductController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'product_name' => 'required',
             'category_id' => 'required',
             'description' => 'required',
-            'price' => 'required|numeric',
-            'status' => 'required|integer',
+            'price' => 'required|numeric|min:0',
+            'quantity' => 'numeric|min:0',
         ]);
-        Product::create($request->all());
-        return redirect()->route('products.index');
+
+        $validated['price'] = $validated['price'] * 100;
+        $validated['status'] = 1;
+
+        Product::create($validated);
+        return redirect()->route('products.index')->with('success', 'Product created successfully!');
+    }
+
+    public function show(Product $product)
+    {
+        return view('products.show', compact('product'));
     }
 
     public function edit(Product $product)
@@ -40,15 +48,18 @@ class ProductController extends Controller
 
     public function update(Request $request, Product $product)
     {
-        $request->validate([
+        $validated = $request->validate([
             'product_name' => 'required',
             'category_id' => 'required',
             'description' => 'required',
-            'price' => 'required|numeric',
+            'price' => 'required|numeric|min:0',
             'status' => 'required|integer',
+            'quantity' => 'numeric|min:0',
         ]);
-        $product->update($request->all());
-        return redirect()->route('products.index');
+        $validated['price'] = $validated['price'] * 100;
+
+        $product->update($validated);
+        return redirect()->route('products.index')->with('success', 'Product updated successfully!');
     }
 
     public function destroy(Product $product)

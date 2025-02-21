@@ -20,12 +20,14 @@
         </div>
         <div class="mb-3">
             <label class="form-label">Price</label>
-            <input type="number" name="price" class="form-control" required>
+            <input type="number" name="price" class="form-control" step="0.01" min="0" required>
         </div>
+
         <div class="mb-3">
-            <label class="form-label">Status</label>
-            <input type="number" name="status" class="form-control" required>
+            <label class="form-label">Quantity in warehouse</label>
+            <input type="number" name="quantity" class="form-control" required>
         </div>
+
         <button type="submit" class="btn btn-primary">Save</button>
     </form>
 @endsection

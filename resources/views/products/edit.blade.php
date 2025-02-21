@@ -34,7 +34,12 @@
 
                     <div class="mb-3">
                         <label for="price" class="form-label">Price</label>
-                        <input type="number" class="form-control" id="price" name="price" value="{{ $product->price }}" required>
+                        <input type="number" name="price" class="form-control"  value="{{ $product->price }}" step="0.01" min="0" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Quantity in warehouse</label>
+                        <input type="number" name="quantity"  value="{{ $product->quantity }}" class="form-control" required>
                     </div>
 
                     <div class="mb-3">
