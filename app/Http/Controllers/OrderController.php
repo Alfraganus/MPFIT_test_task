@@ -2,25 +2,28 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Order;
-use App\Models\OrderComment;
-use App\Models\Product;
-use App\Models\User;
+use App\Http\Service\OrderService;
 use Illuminate\Http\Request;
 
 class OrderController extends Controller
 {
+    protected $orderService;
+
+    public function __construct(OrderService $orderService)
+    {
+        $this->orderService = $orderService;
+    }
+
     public function index()
     {
-        $orders = Order::with(['product', 'user'])->get();
+        $orders = $this->orderService->getAllOrders();
         return view('orders.index', compact('orders'));
     }
 
     public function create()
     {
-        $products = Product::where('quantity', '>', 0)->get();
-        $users = User::all();
-        return view('orders.create', compact('products', 'users'));
+        $data = $this->orderService->getCreateFormData();
+        return view('orders.create', $data);
     }
 
     public function store(Request $request)
@@ -33,61 +36,28 @@ class OrderController extends Controller
             'comment_text' => 'string|nullable',
         ]);
 
-        $product = Product::findOrFail($validated['product_id']);
-
-        if ($product->quantity < $validated['quantity']) {
-            return redirect()->back()->withErrors(['quantity' => 'Not enough stock available'])->withInput();
-        }
-
-        $pricePerUnit = $product->price * 100;
-        $subtotal = $pricePerUnit * $validated['quantity'];
-        $tax = $subtotal * 0.12;
-        $totalPrice = $subtotal + $tax;
-
-        $validated['price'] = $totalPrice;
-
-        $order = Order::create($validated);
-        $product->decrement('quantity', $validated['quantity']);
-
-        if (!empty($validated['comment_text'])) {
-            OrderComment::create([
-                'order_id' => $order['id'],
-                'user_id' => $validated['user_id'],
-                'comment_text' => $validated['comment_text'],
-            ]);
+        $result = $this->orderService->createOrder($validated);
+        if (isset($result['error'])) {
+            return redirect()->back()->withErrors(['quantity' => $result['error']])->withInput();
         }
 
         return redirect()->route('orders.index')->with('success', 'Order created successfully!');
     }
 
-    public function markAsFinished($id)
+    public function show($id)
     {
-        $order = Order::findOrFail($id);
-        $order->update(['order_status_id' => 1]);
-
-        return redirect()->route('orders.show', $order->id)->with('success', 'Order marked as finished!');
-    }
-
-
-    public function show(Order $order)
-    {
-        $order->load(['product', 'comments.user']);
-
+        $order = $this->orderService->getOrderDetails($id);
         return view('orders.show', compact('order'));
     }
 
-
     public function edit($id)
     {
-        $order = Order::findOrFail($id);
-        $products = Product::all();
-        $users = User::all();
-        return view('orders.edit', compact('order', 'products', 'users'));
+        $data = $this->orderService->getEditFormData($id);
+        return view('orders.edit', $data);
     }
 
     public function update(Request $request, $id)
     {
-        $order = Order::findOrFail($id);
         $validated = $request->validate([
             'customer_fullname' => 'required|string|max:255',
             'order_status_id' => 'required|integer',
@@ -97,19 +67,19 @@ class OrderController extends Controller
             'user_id' => 'required|exists:users,id',
         ]);
 
-        $order->update($validated);
-
+        $this->orderService->updateOrder($id, $validated);
         return redirect()->route('orders.index')->with('success', 'Order updated successfully!');
+    }
+
+    public function markAsFinished($id)
+    {
+        $this->orderService->markOrderAsFinished($id);
+        return redirect()->route('orders.show', $id)->with('success', 'Order marked as finished!');
     }
 
     public function destroy($id)
     {
-        $order = Order::findOrFail($id);
-        $product = Product::find($order->product_id);
-
-        $product->increment('quantity', $order->quantity);
-        $order->delete();
-
+        $this->orderService->deleteOrder($id);
         return redirect()->route('orders.index')->with('success', 'Order deleted successfully!');
     }
 }
